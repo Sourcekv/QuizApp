@@ -353,7 +353,7 @@ function App() {
         <div className="brand-wrap">
           <img
             className="app-logo"
-            src="/Logo.png"
+            src="https://i.imgur.com/zuQoQJu.png"
             alt="QuizApp - Learn, Practice, Test, Improve"
           />
         </div>
