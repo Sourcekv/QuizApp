@@ -345,3 +345,63 @@ details p { margin-top: 10px; }
   .matching label, .tf label { grid-template-columns: 1fr; }
   .topbar h1 { font-size: 40px; }
 }
+
+.options button.correct-choice {
+  background: #064e3b !important;
+  border-color: #22c55e !important;
+  color: #ecfdf5 !important;
+  box-shadow: 0 0 0 1px #22c55e33 inset;
+}
+
+.options button.wrong-choice {
+  background: #450a0a !important;
+  border-color: #ef4444 !important;
+  color: #fee2e2 !important;
+  box-shadow: 0 0 0 1px #ef444433 inset;
+}
+
+.choice-mark {
+  display: inline-flex;
+  width: 24px;
+  height: 24px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  margin-right: 10px;
+  font-weight: 1000;
+  font-size: 16px;
+  background: #ffffff18;
+}
+
+.choice-mark.ok {
+  color: #bbf7d0;
+}
+
+.choice-mark.bad {
+  color: #fecaca;
+}
+
+.correct-answer-box,
+.review-answer {
+  margin: 10px 0 12px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: #ffffff0d;
+  border: 1px solid #ffffff18;
+}
+
+.correct-answer-box p,
+.correct-answer-box ul,
+.review-answer ul {
+  margin: 8px 0 0;
+}
+
+.correct-answer-box ul,
+.review-answer ul {
+  padding-left: 22px;
+}
+
+.correct-answer-box li,
+.review-answer li {
+  margin: 5px 0;
+}

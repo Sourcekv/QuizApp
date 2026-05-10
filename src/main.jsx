@@ -92,7 +92,20 @@ const scoreScenarioAnswer = (q, answer) => {
   return 0;
 };
 
-const isArrayEqual = (a = [], b = []) => a.length === b.length && a.every((x) => b.includes(x));
+const isCorrectOption = (q, option) => {
+  if (q.type === 'multiple') return (q.correct || []).includes(option);
+  if (q.type === 'single') return option === q.correct;
+  return false;
+};
+
+const getCorrectAnswerLines = (q) => {
+  if (q.type === 'single') return [q.correct];
+  if (q.type === 'multiple') return q.correct || [];
+  if (q.type === 'matching') return (q.pairs || []).map((pair) => `${pair.term} → ${pair.answer}`);
+  if (q.type === 'truefalse') return (q.statements || []).map((statement) => `${statement.text} → ${statement.correct ? 'True' : 'False'}`);
+  if (q.type === 'scenario') return [q.modelAnswer || 'Any clearly similar correct answer'];
+  return [];
+};
 
 const evaluateQuestion = (q, answer) => {
   let score = 0;
@@ -100,16 +113,19 @@ const evaluateQuestion = (q, answer) => {
   if (q.type === 'scenario') score = scoreScenarioAnswer(q, answer);
   else if (q.type === 'matching') score = q.pairs.every((p) => answer?.[p.term] === p.answer) ? 1 : 0;
   else if (q.type === 'truefalse') score = q.statements.every((s) => answer?.[s.text] === s.correct) ? 1 : 0;
-  else if (q.type === 'multiple') score = isArrayEqual(answer || [], q.correct) ? 1 : 0;
-  else score = answer === q.correct ? 1 : 0;
+  else if (q.type === 'multiple') {
+    const correctChoices = q.correct || [];
+    const selectedCorrectChoices = (answer || []).filter((choice) => correctChoices.includes(choice)).length;
+    score = correctChoices.length ? selectedCorrectChoices / correctChoices.length : 0;
+  } else score = answer === q.correct ? 1 : 0;
 
   return {
     score,
-    status: score === 1 ? 'correct' : score === 0.5 ? 'partial' : 'wrong'
+    status: score === 1 ? 'correct' : score > 0 ? 'partial' : 'wrong'
   };
 };
 
-const formatScore = (value) => Number(value.toFixed(1)).toString();
+const formatScore = (value = 0) => Number(value.toFixed(2)).toString();
 
 function App() {
   const [screen, setScreen] = useState('home');
@@ -304,7 +320,7 @@ function Quiz({ current, index, total, answer, setAnswer, submitted, submit, nex
         <p className="hint">Write the shortest clear answer possible. The app accepts similar wording and can award half a point.</p>
       )}
 
-      <QuestionInput q={current} answer={answer} setAnswer={setAnswer} disabled={submitted} />
+      <QuestionInput q={current} answer={answer} setAnswer={setAnswer} disabled={submitted} submitted={submitted} />
 
       {submitted && <Feedback q={current} result={result} />}
 
@@ -343,15 +359,23 @@ function hasAnswered(q, answer) {
   return true;
 }
 
-function QuestionInput({ q, answer, setAnswer, disabled }) {
+function QuestionInput({ q, answer, setAnswer, disabled, submitted }) {
   if (q.type === 'single') {
     return (
       <div className="options">
-        {q.options.map((option) => (
-          <button disabled={disabled} className={answer === option ? 'selected' : ''} key={option} onClick={() => setAnswer(q.id, option)}>
-            {option}
-          </button>
-        ))}
+        {q.options.map((option) => {
+          const correct = isCorrectOption(q, option);
+          const classes = [answer === option ? 'selected' : '', submitted ? (correct ? 'correct-choice' : 'wrong-choice') : '']
+            .filter(Boolean)
+            .join(' ');
+
+          return (
+            <button disabled={disabled} className={classes} key={option} onClick={() => setAnswer(q.id, option)}>
+              {submitted && <span className={`choice-mark ${correct ? 'ok' : 'bad'}`}>{correct ? '✓' : '✕'}</span>}
+              {option}
+            </button>
+          );
+        })}
       </div>
     );
   }
@@ -361,17 +385,27 @@ function QuestionInput({ q, answer, setAnswer, disabled }) {
       <div className="options">
         {q.options.map((option) => {
           const selected = (answer || []).includes(option);
+          const correct = isCorrectOption(q, option);
+          const classes = [selected ? 'selected' : '', submitted ? (correct ? 'correct-choice' : 'wrong-choice') : '']
+            .filter(Boolean)
+            .join(' ');
+
           return (
             <button
               disabled={disabled}
-              className={selected ? 'selected' : ''}
+              className={classes}
               key={option}
               onClick={() => {
                 const old = answer || [];
                 setAnswer(q.id, selected ? old.filter((x) => x !== option) : [...old, option]);
               }}
             >
-              <span className="fakecheck">{selected ? '☑' : '☐'}</span> {option}
+              {submitted ? (
+                <span className={`choice-mark ${correct ? 'ok' : 'bad'}`}>{correct ? '✓' : '✕'}</span>
+              ) : (
+                <span className="fakecheck">{selected ? '☑' : '☐'}</span>
+              )}
+              {option}
             </button>
           );
         })}
@@ -435,14 +469,26 @@ function QuestionInput({ q, answer, setAnswer, disabled }) {
 function Feedback({ q, result }) {
   const icon = result.status === 'correct' ? <CheckCircle2 /> : result.status === 'partial' ? <AlertTriangle /> : <XCircle />;
   const title = result.status === 'correct' ? 'Correct!' : result.status === 'partial' ? 'Partially correct.' : 'Not quite.';
+  const correctLines = getCorrectAnswerLines(q);
 
   return (
     <div className={`feedback ${result.status}`}>
       {icon}
       <div>
         <h3>{title} <span>{formatScore(result.score)} point{result.score === 1 ? '' : 's'}</span></h3>
-        <p>{q.explanation}</p>
-        {q.modelAnswer && <p><b>Shortest model answer:</b> {q.modelAnswer}</p>}
+
+        <div className="correct-answer-box">
+          <b>Full correct answer:</b>
+          {correctLines.length > 1 ? (
+            <ul>
+              {correctLines.map((line) => <li key={line}>{line}</li>)}
+            </ul>
+          ) : (
+            <p>{correctLines[0]}</p>
+          )}
+        </div>
+
+        <p><b>Expanded explanation:</b> {q.explanation}</p>
       </div>
     </div>
   );
@@ -475,8 +521,13 @@ function Result({ score, total, quiz, answers, start, reset }) {
             <summary>
               {i + 1}. {q.prompt} — {result.status === 'correct' ? 'Correct' : result.status === 'partial' ? 'Partial' : 'Review'} ({formatScore(result.score)} pts)
             </summary>
-            <p>{q.explanation}</p>
-            {q.modelAnswer && <p><b>Shortest model answer:</b> {q.modelAnswer}</p>}
+            <div className="review-answer">
+              <b>Full correct answer:</b>
+              <ul>
+                {getCorrectAnswerLines(q).map((line) => <li key={line}>{line}</li>)}
+              </ul>
+            </div>
+            <p><b>Expanded explanation:</b> {q.explanation}</p>
           </details>
         );
       })}
