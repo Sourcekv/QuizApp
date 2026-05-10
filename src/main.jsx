@@ -12,10 +12,11 @@ import {
   Sparkles,
   AlertTriangle
 } from 'lucide-react';
-import { QUESTION_BANK } from './data/questions.js';
+import { QUESTION_PACKS, QUESTION_BANK } from './data/questions.js';
 import './styles.css';
 
 const QUIZ_SIZE = 30;
+const QUESTION_TYPES = ['single', 'multiple', 'matching', 'truefalse', 'scenario'];
 
 const MASCOT_LINES = {
   preQuiz: [
@@ -86,22 +87,44 @@ const pickLine = (lines = []) => lines[Math.floor(Math.random() * lines.length)]
 
 const shuffle = (arr = []) => [...arr].sort(() => Math.random() - 0.5);
 
+const prepareQuestion = (q) => ({
+  ...q,
+  options: q.options ? shuffle(q.options) : q.options,
+  definitions: q.definitions ? shuffle(q.definitions) : q.definitions,
+  pairs: q.pairs ? shuffle(q.pairs) : q.pairs,
+  statements: q.statements ? shuffle(q.statements) : q.statements
+});
+
 const sampleQuestions = (filters) => {
-  let pool = QUESTION_BANK.filter(
-    (q) => (!filters.topic || q.topic === filters.topic) && (!filters.type || q.type === filters.type)
-  );
+  const selectedPack = QUESTION_PACKS.find((pack) => pack.id === filters.packId);
+  const source = selectedPack?.questions || [];
+  let pool = source.filter((q) => (!filters.topic || q.topic === filters.topic) && (!filters.type || q.type === filters.type));
 
-  if (pool.length < QUIZ_SIZE) pool = QUESTION_BANK;
+  if (!pool.length) pool = source;
 
-  return shuffle(pool)
-    .slice(0, QUIZ_SIZE)
-    .map((q) => ({
-      ...q,
-      options: q.options ? shuffle(q.options) : q.options,
-      definitions: q.definitions ? shuffle(q.definitions) : q.definitions,
-      pairs: q.pairs ? shuffle(q.pairs) : q.pairs,
-      statements: q.statements ? shuffle(q.statements) : q.statements
-    }));
+  if (filters.type) {
+    return shuffle(pool).slice(0, QUIZ_SIZE).map(prepareQuestion);
+  }
+
+  const availableTypes = QUESTION_TYPES.filter((type) => pool.some((q) => q.type === type));
+  const perType = Math.floor(QUIZ_SIZE / availableTypes.length);
+  let remainder = QUIZ_SIZE % availableTypes.length;
+  const selected = [];
+
+  availableTypes.forEach((type) => {
+    const typePool = shuffle(pool.filter((q) => q.type === type));
+    const amount = perType + (remainder > 0 ? 1 : 0);
+    remainder -= 1;
+    selected.push(...typePool.slice(0, amount));
+  });
+
+  if (selected.length < QUIZ_SIZE) {
+    const selectedIds = new Set(selected.map((q) => q.id));
+    const filler = shuffle(pool.filter((q) => !selectedIds.has(q.id))).slice(0, QUIZ_SIZE - selected.length);
+    selected.push(...filler);
+  }
+
+  return shuffle(selected).slice(0, QUIZ_SIZE).map(prepareQuestion);
 };
 
 const normalizeText = (value = '') =>
@@ -179,7 +202,11 @@ const evaluateQuestion = (q, answer) => {
 
   if (q.type === 'scenario') score = scoreScenarioAnswer(q, answer);
   else if (q.type === 'matching') score = q.pairs.every((p) => answer?.[p.term] === p.answer) ? 1 : 0;
-  else if (q.type === 'truefalse') score = q.statements.every((s) => answer?.[s.text] === s.correct) ? 1 : 0;
+  else if (q.type === 'truefalse') {
+    const statements = q.statements || [];
+    const correctStatements = statements.filter((s) => answer?.[s.text] === s.correct).length;
+    score = statements.length ? correctStatements / statements.length : 0;
+  }
   else if (q.type === 'multiple') {
     const correctChoices = q.correct || [];
     const selectedCorrectChoices = (answer || []).filter((choice) => correctChoices.includes(choice)).length;
@@ -196,7 +223,7 @@ const formatScore = (value = 0) => Number(value.toFixed(2)).toString();
 
 function App() {
   const [screen, setScreen] = useState('home');
-  const [filters, setFilters] = useState({ topic: '', type: '' });
+  const [filters, setFilters] = useState({ packId: '', topic: '', type: '' });
   const [quiz, setQuiz] = useState([]);
   const [index, setIndex] = useState(0);
   const [answers, setAnswers] = useState({});
@@ -205,8 +232,12 @@ function App() {
   const [mascotMood, setMascotMood] = useState('tease');
   const [mascotMessage, setMascotMessage] = useState(() => pickLine(MASCOT_LINES.preQuiz));
 
-  const topics = [...new Set(QUESTION_BANK.map((q) => q.topic))];
-  const types = [...new Set(QUESTION_BANK.map((q) => q.type))];
+  const selectedPack = QUESTION_PACKS.find((pack) => pack.id === filters.packId);
+  const activeQuestions = selectedPack?.questions || [];
+  const topics = [...new Set(activeQuestions.map((q) => q.topic))];
+  const types = [...new Set(activeQuestions.map((q) => q.type))].sort(
+    (a, b) => QUESTION_TYPES.indexOf(a) - QUESTION_TYPES.indexOf(b)
+  );
   const current = quiz[index];
   const currentResult = current ? evaluateQuestion(current, answers[current.id]) : null;
 
@@ -272,6 +303,7 @@ function App() {
   };
 
   const start = () => {
+    if (!filters.packId) return;
     setQuiz(sampleQuestions(filters));
     setIndex(0);
     setAnswers({});
@@ -303,7 +335,8 @@ function App() {
       date: new Date().toLocaleString(),
       score,
       total: quiz.length,
-      filters
+      filters,
+      packTitle: selectedPack?.title || ''
     };
     const nextHistory = [result, ...history].slice(0, 8);
     localStorage.setItem('qaQuizHistory', JSON.stringify(nextHistory));
@@ -319,21 +352,20 @@ function App() {
       <header className="topbar">
         <div>
           <span className="badge">QA Academy Practice</span>
-          <h1>Requirement & Agile QA Quiz App</h1>
+          <h1>QA Academy Unit Practice Quiz App</h1>
           <p>
-            Random 30-question practice quizzes focused on BRDs, requirement review, RTM, user stories,
-            acceptance criteria, Agile prioritization, and practical QA scenarios.
+            Choose the academy test pack you want to practice, then launch a fresh 30-question quiz with balanced mixed question types.
           </p>
         </div>
         <div className="bank">
           <BookOpen />
-          <b>{QUESTION_BANK.length}</b>
-          <span>question bank</span>
+          <b>{selectedPack ? selectedPack.questions.length : QUESTION_BANK.length}</b>
+          <span>{selectedPack ? 'selected pack' : 'total questions'}</span>
         </div>
       </header>
 
       {screen === 'home' && (
-        <Home topics={topics} types={types} filters={filters} setFilters={setFilters} start={start} history={history} />
+        <Home packs={QUESTION_PACKS} selectedPack={selectedPack} topics={topics} types={types} filters={filters} setFilters={setFilters} start={start} history={history} />
       )}
       {screen === 'quiz' && current && (
         <Quiz
@@ -356,14 +388,13 @@ function App() {
   );
 }
 
-function Home({ topics, types, filters, setFilters, start, history }) {
+function Home({ packs, selectedPack, topics, types, filters, setFilters, start, history }) {
   return (
     <main className="grid">
       <section className="panel hero">
-        <h2>Practice like a real QA exam.</h2>
+        <h2>Choose your academy test pack.</h2>
         <p>
-          Each run generates a fresh mixed quiz. Options, matching definitions, and statements are shuffled every time,
-          so memorizing order will not help.
+          Your academy separates exams by units. Select Test 1, Test 2, or Test 3, then practice with a fresh 30-question quiz from that pack. Mixed mode gives an equal number of each question type.
         </p>
 
         <div className="cards">
@@ -384,11 +415,30 @@ function Home({ topics, types, filters, setFilters, start, history }) {
           </div>
         </div>
 
+        <div className="pack-list">
+          {packs.map((pack) => (
+            <button
+              key={pack.id}
+              type="button"
+              className={filters.packId === pack.id ? 'pack-card active' : 'pack-card'}
+              onClick={() => setFilters({ packId: pack.id, topic: '', type: '' })}
+            >
+              <b>{pack.title}</b>
+              <span>{pack.description}</span>
+              <em>{pack.questions.length} questions available</em>
+            </button>
+          ))}
+        </div>
+
         <div className="controls">
           <label>
             Topic
-            <select value={filters.topic} onChange={(e) => setFilters({ ...filters, topic: e.target.value })}>
-              <option value="">All topics</option>
+            <select
+              value={filters.topic}
+              disabled={!selectedPack}
+              onChange={(e) => setFilters({ ...filters, topic: e.target.value })}
+            >
+              <option value="">All topics in selected test</option>
               {topics.map((topic) => (
                 <option key={topic}>{topic}</option>
               ))}
@@ -397,16 +447,20 @@ function Home({ topics, types, filters, setFilters, start, history }) {
 
           <label>
             Question type
-            <select value={filters.type} onChange={(e) => setFilters({ ...filters, type: e.target.value })}>
-              <option value="">Mixed types</option>
+            <select
+              value={filters.type}
+              disabled={!selectedPack}
+              onChange={(e) => setFilters({ ...filters, type: e.target.value })}
+            >
+              <option value="">Mixed types - equal balance</option>
               {types.map((type) => (
-                <option key={type}>{type}</option>
+                <option key={type} value={type}>{typeLabel(type)}</option>
               ))}
             </select>
           </label>
         </div>
 
-        <button className="primary" onClick={start}>Start random 30-question quiz</button>
+        <button className="primary" onClick={start} disabled={!selectedPack}>Start selected 30-question quiz</button>
       </section>
 
       <section className="panel">
@@ -416,7 +470,7 @@ function Home({ topics, types, filters, setFilters, start, history }) {
         ) : (
           history.map((h, index) => (
             <div className="scoreline" key={`${h.date}-${index}`}>
-              <span>{h.date}</span>
+              <span>{h.date}{h.packTitle ? ` · ${h.packTitle}` : ''}</span>
               <b>{formatScore(h.score)}/{h.total}</b>
             </div>
           ))
@@ -424,12 +478,12 @@ function Home({ topics, types, filters, setFilters, start, history }) {
 
         <h3>Included learning areas</h3>
         <ul className="checklist">
-          <li>BRD purpose, scope, KPIs, lifecycle, and version control</li>
-          <li>QA requirement review: clarity, completeness, consistency, testability</li>
-          <li>Static vs dynamic testing and RTM traceability</li>
-          <li>User stories, acceptance criteria, and Given-When-Then</li>
-          <li>Story points, velocity, planning poker, impact vs effort</li>
-          <li>Short written answers with full, partial, or wrong scoring</li>
+          <li>Test 1: QA basics, testing concepts, Agile/Scrum, tools, and complete STLC</li>
+          <li>Test 2: UI testing, Sandbox/Dragon UI, PAS, quote creation, policy lifecycle, rating, and transactions</li>
+          <li>Test 3: BRD, requirement review, RTM, user stories, acceptance criteria, GWT, and prioritization</li>
+          <li>Mixed mode gives an equal number of single, multiple, matching, true/false, and written questions</li>
+          <li>Multiple-correct and true/false questions support partial scoring</li>
+          <li>Short written answers accept similar wording and can award half points</li>
         </ul>
       </section>
     </main>
@@ -571,20 +625,36 @@ function QuestionInput({ q, answer, setAnswer, disabled, submitted }) {
   if (q.type === 'truefalse') {
     return (
       <div className="tf">
-        {q.statements.map((statement) => (
-          <label key={statement.text}>
-            <span>{statement.text}</span>
-            <select
-              disabled={disabled}
-              value={answer?.[statement.text] ?? ''}
-              onChange={(e) => setAnswer(q.id, { ...(answer || {}), [statement.text]: e.target.value === 'true' })}
-            >
-              <option value="">Choose</option>
-              <option value="true">True</option>
-              <option value="false">False</option>
-            </select>
-          </label>
-        ))}
+        {q.statements.map((statement) => {
+          const userValue = answer?.[statement.text];
+          const answeredCorrectly = submitted && userValue === statement.correct;
+          const answeredWrongly = submitted && userValue !== statement.correct;
+          const classes = [answeredCorrectly ? 'tf-correct' : '', answeredWrongly ? 'tf-wrong' : '']
+            .filter(Boolean)
+            .join(' ');
+
+          return (
+            <label key={statement.text} className={classes}>
+              <span>
+                {submitted && (
+                  <strong className={`choice-mark ${answeredCorrectly ? 'ok' : 'bad'}`}>
+                    {answeredCorrectly ? '✓' : '✕'}
+                  </strong>
+                )}
+                {statement.text}
+              </span>
+              <select
+                disabled={disabled}
+                value={userValue ?? ''}
+                onChange={(e) => setAnswer(q.id, { ...(answer || {}), [statement.text]: e.target.value === 'true' })}
+              >
+                <option value="">Choose</option>
+                <option value="true">True</option>
+                <option value="false">False</option>
+              </select>
+            </label>
+          );
+        })}
       </div>
     );
   }
@@ -642,7 +712,7 @@ function Result({ score, total, quiz, answers, start, reset }) {
       </p>
 
       <div className="actions">
-        <button className="primary" onClick={start}>Generate another 30-question quiz</button>
+        <button className="primary" onClick={start}>Generate another quiz from selected test</button>
         <button className="ghost" onClick={reset}>Back to home</button>
       </div>
 

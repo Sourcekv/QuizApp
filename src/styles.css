@@ -583,3 +583,74 @@ details p { margin-top: 10px; }
     padding: 10px 12px;
   }
 }
+
+.pack-list {
+  display: grid;
+  gap: 12px;
+  margin: 22px 0;
+}
+
+.pack-card {
+  width: 100%;
+  display: grid;
+  gap: 7px;
+  text-align: left;
+  border-radius: 20px;
+  padding: 16px;
+  color: #dbeafe;
+  background: #ffffff0c;
+  border: 1px solid #ffffff16;
+  cursor: pointer;
+  transition: .2s;
+}
+
+.pack-card:hover {
+  transform: translateY(-1px);
+  border-color: #60a5fa88;
+  background: #17255466;
+}
+
+.pack-card.active {
+  border-color: #22d3ee;
+  background: linear-gradient(135deg, #0e749033, #7c3aed33);
+  box-shadow: 0 0 0 1px #22d3ee33 inset, 0 16px 36px #0004;
+}
+
+.pack-card b {
+  font-size: 17px;
+  color: #fff;
+}
+
+.pack-card span {
+  color: #bfd3ee;
+  line-height: 1.45;
+}
+
+.pack-card em {
+  color: #93c5fd;
+  font-style: normal;
+  font-size: 13px;
+  font-weight: 850;
+}
+
+select:disabled {
+  opacity: .55;
+  cursor: not-allowed;
+}
+
+.tf label.tf-correct {
+  background: #064e3b55;
+  border-color: #22c55eaa;
+  color: #ecfdf5;
+}
+
+.tf label.tf-wrong {
+  background: #450a0a66;
+  border-color: #ef4444aa;
+  color: #fee2e2;
+}
+
+.tf label.tf-correct select,
+.tf label.tf-wrong select {
+  opacity: .95;
+}
