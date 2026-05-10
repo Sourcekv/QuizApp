@@ -350,12 +350,12 @@ function App() {
       <div className="glow two"></div>
 
       <header className="topbar">
-        <div>
-          <span className="badge">QA Academy Practice</span>
-          <h1>QA Academy Unit Practice Quiz App</h1>
-          <p>
-            Choose the academy test pack you want to practice, then launch a fresh 30-question quiz with balanced mixed question types.
-          </p>
+        <div className="brand-wrap">
+          <img
+            className="app-logo"
+            src="/Logo.png"
+            alt="QuizApp - Learn, Practice, Test, Improve"
+          />
         </div>
         <div className="bank">
           <BookOpen />
