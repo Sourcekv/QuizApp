@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import {
   Trophy,
@@ -16,6 +16,73 @@ import { QUESTION_BANK } from './data/questions.js';
 import './styles.css';
 
 const QUIZ_SIZE = 30;
+
+const MASCOT_LINES = {
+  preQuiz: [
+    'Are you ready for the torture? The edge cases are waiting.',
+    'Prepare to be tortured by acceptance criteria, my slave.',
+    'It is time for your suffering: 30 questions, no mercy, only QA.',
+    'Welcome to the chamber of test cases. Click start when your soul is ready.',
+    'Today we hunt ambiguity, missing requirements, and lazy assumptions.'
+  ],
+  idle: [
+    'Hint: testability means you can clearly verify whether the requirement passed or failed.',
+    'Tip: a good BRD explains the business need before jumping into the solution.',
+    'Remember: acceptance criteria define when the story is done.',
+    'QA wisdom: if it is not clear, it is not ready to test.',
+    'Traceability connects requirements, test cases, and defects. Lose it and chaos wins.',
+    'A user story without acceptance criteria is just a wish with better formatting.',
+    'BRD scope tells you what is in, what is out, and what can ruin your sprint.',
+    'Given-When-Then is a tiny story: context, action, expected system result.',
+    'Static testing finds problems before execution. Your future self will thank you.',
+    'QA joke: Why did the tester cross the road? To check the alternate flow.'
+  ],
+  correct: [
+    'Correct! The bug monster retreats for now.',
+    'Excellent. That answer passed inspection.',
+    'Clean execution. No defect found in that brain.',
+    'Well done. Your acceptance criteria survived the review.'
+  ],
+  partial: [
+    'Partially correct. Not a failure, but definitely needs refinement.',
+    'Close enough to earn some points, but the requirement still has gaps.',
+    'Half credit unlocked. QA calls this: needs clarification.',
+    'You found part of the path. Now trace the missing requirement.'
+  ],
+  wrong: [
+    'Wrong. The pillar of shame has updated successfully.',
+    'That answer failed regression. Try reading the explanation carefully.',
+    'Defect detected. Expected result did not match actual result.',
+    'No mercy from the QA dungeon. Review the correct answer.'
+  ],
+  resultGood: [
+    'Strong result. You may leave the torture chamber with honor.',
+    'Excellent work. The requirements fear you now.',
+    'You survived the sprint review. For now.'
+  ],
+  resultMid: [
+    'Not bad. A few requirements still need clarification.',
+    'Decent score. Now retest the weak areas.',
+    'You passed smoke testing, but regression is still waiting.'
+  ],
+  resultLow: [
+    'The bug army is laughing. Train again.',
+    'Critical defects found in knowledge coverage. Restart recommended.',
+    'Back to the lecture dungeon. The requirements demand tribute.'
+  ]
+};
+
+const MASCOT_IMAGE = {
+  idle: '/mascot/idle.png',
+  tease: '/mascot/tease.png',
+  correct: '/mascot/correct.png',
+  wrong: '/mascot/wrong.png',
+  partial: '/mascot/partial.png',
+  tip: '/mascot/tip.png'
+};
+
+const pickLine = (lines = []) => lines[Math.floor(Math.random() * lines.length)] || '';
+
 
 const shuffle = (arr = []) => [...arr].sort(() => Math.random() - 0.5);
 
@@ -135,10 +202,74 @@ function App() {
   const [answers, setAnswers] = useState({});
   const [submitted, setSubmitted] = useState(false);
   const [history, setHistory] = useState(() => JSON.parse(localStorage.getItem('qaQuizHistory') || '[]'));
+  const [mascotMood, setMascotMood] = useState('tease');
+  const [mascotMessage, setMascotMessage] = useState(() => pickLine(MASCOT_LINES.preQuiz));
 
   const topics = [...new Set(QUESTION_BANK.map((q) => q.topic))];
   const types = [...new Set(QUESTION_BANK.map((q) => q.type))];
   const current = quiz[index];
+  const currentResult = current ? evaluateQuestion(current, answers[current.id]) : null;
+
+  useEffect(() => {
+    if (screen === 'home') {
+      setMascotMood('tease');
+      setMascotMessage(pickLine(MASCOT_LINES.preQuiz));
+      return;
+    }
+
+    if (screen === 'result') {
+      const ratio = quiz.length ? score / quiz.length : 0;
+      if (ratio >= 0.8) {
+        setMascotMood('correct');
+        setMascotMessage(pickLine(MASCOT_LINES.resultGood));
+      } else if (ratio >= 0.5) {
+        setMascotMood('partial');
+        setMascotMessage(pickLine(MASCOT_LINES.resultMid));
+      } else {
+        setMascotMood('wrong');
+        setMascotMessage(pickLine(MASCOT_LINES.resultLow));
+      }
+      return;
+    }
+
+    if (screen === 'quiz' && current) {
+      if (submitted && currentResult) {
+        setMascotMood(currentResult.status);
+        setMascotMessage(pickLine(MASCOT_LINES[currentResult.status]));
+      } else {
+        setMascotMood(Math.random() > 0.45 ? 'tip' : 'idle');
+        setMascotMessage(pickLine(MASCOT_LINES.idle));
+      }
+    }
+  }, [screen, index, submitted, current?.id]);
+
+  useEffect(() => {
+    if (screen !== 'quiz' || submitted) return undefined;
+
+    const timer = window.setInterval(() => {
+      setMascotMood((oldMood) => (oldMood === 'tip' ? 'idle' : 'tip'));
+      setMascotMessage(pickLine(MASCOT_LINES.idle));
+    }, 14000);
+
+    return () => window.clearInterval(timer);
+  }, [screen, submitted, index]);
+
+  const nudgeMascot = () => {
+    if (screen === 'home') {
+      setMascotMood('tease');
+      setMascotMessage(pickLine(MASCOT_LINES.preQuiz));
+      return;
+    }
+
+    if (screen === 'quiz' && submitted && currentResult) {
+      setMascotMood(currentResult.status);
+      setMascotMessage(pickLine(MASCOT_LINES[currentResult.status]));
+      return;
+    }
+
+    setMascotMood('tip');
+    setMascotMessage(pickLine(MASCOT_LINES.idle));
+  };
 
   const start = () => {
     setQuiz(sampleQuestions(filters));
@@ -219,6 +350,8 @@ function App() {
       {screen === 'result' && (
         <Result score={score} total={quiz.length} quiz={quiz} answers={answers} start={start} reset={reset} />
       )}
+
+      <Mascot mood={mascotMood} message={mascotMessage} onClick={nudgeMascot} />
     </div>
   );
 }
@@ -532,6 +665,30 @@ function Result({ score, total, quiz, answers, start, reset }) {
         );
       })}
     </main>
+  );
+}
+
+
+function Mascot({ mood, message, onClick }) {
+  const sprite = MASCOT_IMAGE[mood] || MASCOT_IMAGE.idle;
+  const label = mood === 'correct'
+    ? 'Happy QA mascot'
+    : mood === 'wrong'
+      ? 'Angry QA mascot'
+      : mood === 'partial'
+        ? 'Shrugging QA mascot'
+        : 'QA mascot';
+
+  return (
+    <aside className={`mascot mascot-${mood}`} aria-label="Animated QA mascot">
+      <button className="mascot-bubble" onClick={onClick} title="Click for another QA tip">
+        {message}
+      </button>
+      <button className="mascot-stage" onClick={onClick} title="Click for another QA tip">
+        <span className="mascot-shadow"></span>
+        <img src={sprite} alt={label} />
+      </button>
+    </aside>
   );
 }
 
