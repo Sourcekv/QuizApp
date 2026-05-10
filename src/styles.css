@@ -406,180 +406,96 @@ details p { margin-top: 10px; }
   margin: 5px 0;
 }
 
-.mascot {
+/* ── Mascot ─────────────────────────────────────── */
+.mascot-root {
   position: fixed;
-  right: clamp(10px, 2.2vw, 30px);
-  bottom: clamp(8px, 1.8vw, 24px);
-  z-index: 30;
-  width: min(260px, 28vw);
-  min-width: 150px;
-  display: grid;
-  justify-items: end;
-  gap: 8px;
+  bottom: 0;
+  right: 24px;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
   pointer-events: none;
+  gap: 0;
 }
 
-.mascot-bubble,
-.mascot-stage {
-  pointer-events: auto;
-  border: 0;
-  background: transparent;
-  cursor: pointer;
-  font: inherit;
+.mascot-img {
+  width: 160px;
+  height: auto;
+  display: block;
+  filter: drop-shadow(0 8px 24px #0008);
+  animation: mascot-float 3.5s ease-in-out infinite, mascot-pop-in 0.35s cubic-bezier(.34,1.56,.64,1) both;
+  transform-origin: bottom center;
+}
+
+@keyframes mascot-float {
+  0%, 100% { transform: translateY(0px); }
+  50%       { transform: translateY(-8px); }
+}
+
+@keyframes mascot-pop-in {
+  from { opacity: 0; transform: scale(0.7) translateY(30px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
 }
 
 .mascot-bubble {
   position: relative;
-  max-width: min(330px, 82vw);
-  margin-right: min(64px, 6vw);
-  padding: 13px 15px;
-  border-radius: 18px 18px 6px 18px;
-  color: #eaf3ff;
-  text-align: left;
-  font-size: clamp(12px, 1.25vw, 14px);
-  line-height: 1.35;
-  font-weight: 850;
-  background: linear-gradient(135deg, #111827ee, #172554ee);
-  border: 1px solid #60a5fa77;
-  box-shadow: 0 18px 46px #0008, 0 0 26px #3b82f633;
-  animation: bubble-pop .35s ease both;
+  max-width: 240px;
+  background: #0f1d32ee;
+  border: 1px solid #ffffff22;
+  border-radius: 18px 18px 4px 18px;
+  padding: 12px 16px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #dbeafe;
+  backdrop-filter: blur(12px);
+  box-shadow: 0 8px 32px #0006;
+  transition: opacity 0.25s ease, transform 0.25s ease;
+  margin-bottom: 6px;
 }
 
-.mascot-bubble::after {
+.mascot-bubble.bubble-in {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  animation: bubble-appear 0.3s cubic-bezier(.34,1.56,.64,1) both;
+}
+
+.mascot-bubble.bubble-out {
+  opacity: 0;
+  transform: translateY(6px) scale(0.95);
+  pointer-events: none;
+}
+
+@keyframes bubble-appear {
+  from { opacity: 0; transform: translateY(10px) scale(0.92); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.bubble-tail {
+  position: absolute;
+  bottom: -8px;
+  right: 18px;
+  width: 0;
+  height: 0;
+  border-left: 8px solid transparent;
+  border-right: 8px solid transparent;
+  border-top: 8px solid #ffffff22;
+}
+
+.bubble-tail::after {
   content: '';
   position: absolute;
-  right: 18px;
-  bottom: -9px;
-  width: 18px;
-  height: 18px;
-  background: #172554ee;
-  border-right: 1px solid #60a5fa77;
-  border-bottom: 1px solid #60a5fa77;
-  transform: rotate(45deg);
+  top: -9px;
+  left: -7px;
+  width: 0;
+  height: 0;
+  border-left: 7px solid transparent;
+  border-right: 7px solid transparent;
+  border-top: 7px solid #0f1d32ee;
 }
 
-.mascot-stage {
-  position: relative;
-  width: min(174px, 18vw);
-  min-width: 118px;
-  padding: 0;
-  display: grid;
-  justify-items: center;
-}
-
-.mascot-stage img {
-  position: relative;
-  z-index: 2;
-  display: block;
-  width: 100%;
-  height: auto;
-  filter: drop-shadow(0 18px 28px #0009);
-  transform-origin: 50% 92%;
-  animation: mascot-idle 3.2s ease-in-out infinite;
-}
-
-.mascot-shadow {
-  position: absolute;
-  bottom: 0;
-  width: 70%;
-  height: 15px;
-  border-radius: 999px;
-  background: #0008;
-  filter: blur(8px);
-  opacity: .85;
-  transform: translateY(3px);
-  animation: mascot-shadow 3.2s ease-in-out infinite;
-}
-
-.mascot-correct .mascot-stage img {
-  animation: mascot-celebrate .95s ease-in-out infinite;
-}
-
-.mascot-wrong .mascot-stage img {
-  animation: mascot-angry .72s ease-in-out infinite;
-}
-
-.mascot-partial .mascot-stage img {
-  animation: mascot-shrug 1.4s ease-in-out infinite;
-}
-
-.mascot-tip .mascot-stage img,
-.mascot-tease .mascot-stage img {
-  animation: mascot-teach 2.2s ease-in-out infinite;
-}
-
-.mascot-correct .mascot-bubble { border-color: #22c55e99; box-shadow: 0 18px 46px #0008, 0 0 30px #22c55e33; }
-.mascot-partial .mascot-bubble { border-color: #f59e0b99; box-shadow: 0 18px 46px #0008, 0 0 30px #f59e0b33; }
-.mascot-wrong .mascot-bubble { border-color: #ef444499; box-shadow: 0 18px 46px #0008, 0 0 30px #ef444433; }
-
-@keyframes mascot-idle {
-  0%, 100% { transform: translateY(0) rotate(-1deg) scale(1); }
-  45% { transform: translateY(-8px) rotate(1deg) scale(1.015); }
-  70% { transform: translateY(-3px) rotate(-.5deg) scale(1.005); }
-}
-
-@keyframes mascot-shadow {
-  0%, 100% { transform: translateY(3px) scale(1); opacity: .78; }
-  45% { transform: translateY(3px) scale(.86); opacity: .55; }
-}
-
-@keyframes mascot-celebrate {
-  0%, 100% { transform: translateY(0) rotate(0deg) scale(1); }
-  35% { transform: translateY(-16px) rotate(-3deg) scale(1.06); }
-  70% { transform: translateY(-4px) rotate(2deg) scale(1.02); }
-}
-
-@keyframes mascot-angry {
-  0%, 100% { transform: translateX(0) rotate(0deg); }
-  18% { transform: translateX(-5px) rotate(-2.5deg); }
-  36% { transform: translateX(5px) rotate(2.5deg); }
-  54% { transform: translateX(-4px) rotate(-2deg); }
-  72% { transform: translateX(4px) rotate(2deg); }
-}
-
-@keyframes mascot-shrug {
-  0%, 100% { transform: translateY(0) rotate(0deg) scale(1); }
-  28% { transform: translateY(-5px) rotate(-2deg) scale(1.025); }
-  56% { transform: translateY(-2px) rotate(2deg) scale(1.01); }
-}
-
-@keyframes mascot-teach {
-  0%, 100% { transform: translateY(0) rotate(-1deg); }
-  50% { transform: translateY(-7px) rotate(2deg); }
-}
-
-@keyframes bubble-pop {
-  from { opacity: 0; transform: translateY(8px) scale(.96); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
-}
-
-@media (max-width: 900px) {
-  .mascot {
-    width: min(210px, 36vw);
-  }
-
-  .mascot-bubble {
-    margin-right: 24px;
-    max-width: min(300px, 74vw);
-  }
-}
-
-@media (max-width: 640px) {
-  .app-shell { padding-bottom: 230px; }
-
-  .mascot {
-    width: 160px;
-    right: 10px;
-    bottom: 8px;
-  }
-
-  .mascot-stage {
-    width: 120px;
-  }
-
-  .mascot-bubble {
-    margin-right: 0;
-    font-size: 12px;
-    padding: 10px 12px;
-  }
+@media (max-width: 800px) {
+  .mascot-root { right: 8px; }
+  .mascot-img { width: 110px; }
+  .mascot-bubble { max-width: 180px; font-size: 12px; }
 }
